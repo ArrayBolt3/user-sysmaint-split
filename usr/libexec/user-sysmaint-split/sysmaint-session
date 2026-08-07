@@ -1,9 +1,20 @@
 #!/bin/bash
 
+# shellcheck source-path=SCRIPTDIR
+
 ## Copyright (C) 2024 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
 ## See the file COPYING for copying conditions.
 
 # shellcheck source=../../../../helper-scripts/usr/libexec/helper-scripts/light_sleep.bsh
+## Sibling repo: absent in an isolated CI checkout.
+# shellcheck disable=SC1091
+set -o errexit
+set -o nounset
+set -o pipefail
+set -o errtrace
+shopt -s inherit_errexit
+shopt -s shift_verbose
+
 source /usr/libexec/helper-scripts/light_sleep.bsh
 
 # shellcheck source=./sysmaint-session-shared
