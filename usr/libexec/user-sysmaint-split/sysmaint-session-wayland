@@ -145,10 +145,13 @@ if [ -n "${do_once_dir}" ] && has pactl; then
    ## Also in
    ## desktop-config-dist/usr/libexec/desktop-config-dist/start-lxqt-session.
    if ! [ -f "${do_once_dir}/set_safe_speaker_volume" ]; then
-      ## Same reasoning: an unwritable marker must not end the session.
-      touch -- "${do_once_dir}/set_safe_speaker_volume" || true
-      if [ "$(systemd-detect-virt 2>/dev/null || true)" = 'none' ]; then
-          timeout --kill-after="1" "1" pactl set-sink-volume @DEFAULT_SINK@ 50% || true
+      ## Same reasoning: an unwritable marker must not end the session. Only set
+      ## the volume once the marker is recorded, so a failed touch skips it
+      ## rather than re-running the set every session.
+      if touch -- "${do_once_dir}/set_safe_speaker_volume"; then
+         if [ "$(systemd-detect-virt 2>/dev/null || true)" = 'none' ]; then
+            timeout --kill-after="1" "1" pactl set-sink-volume @DEFAULT_SINK@ 50% || true
+         fi
       fi
    fi
 fi
