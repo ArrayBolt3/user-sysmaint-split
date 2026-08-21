@@ -16,28 +16,21 @@ set -o pipefail
 set -o errtrace
 shopt -s inherit_errexit
 shopt -s shift_verbose
+export LC_ALL=C
 
 exec >/dev/null 2>&1
 
 # shellcheck source=../../../../helper-scripts/usr/libexec/helper-scripts/light_sleep.bsh
-## Sibling repo: absent in an isolated CI checkout.
-# shellcheck disable=SC1091
-source /usr/libexec/helper-scripts/light_sleep.bsh
+source "${HELPER_SCRIPTS_PATH:-}"/usr/libexec/helper-scripts/light_sleep.bsh
 
 # shellcheck source=../../../../helper-scripts/usr/libexec/helper-scripts/has.sh
-## Sibling repo: absent in an isolated CI checkout.
-# shellcheck disable=SC1091
-source /usr/libexec/helper-scripts/has.sh
+source "${HELPER_SCRIPTS_PATH:-}"/usr/libexec/helper-scripts/has.sh
 
 # shellcheck source=../../../../helper-scripts/usr/libexec/helper-scripts/try_wait_for_audio_ready.bsh
-## Sibling repo: absent in an isolated CI checkout.
-# shellcheck disable=SC1091
-source /usr/libexec/helper-scripts/try_wait_for_audio_ready.bsh
+source "${HELPER_SCRIPTS_PATH:-}"/usr/libexec/helper-scripts/try_wait_for_audio_ready.bsh
 
 # shellcheck source=../../../../helper-scripts/usr/libexec/helper-scripts/strings.bsh
-## Sibling repo: absent in an isolated CI checkout.
-# shellcheck disable=SC1091
-source /usr/libexec/helper-scripts/strings.bsh
+source "${HELPER_SCRIPTS_PATH:-}"/usr/libexec/helper-scripts/strings.bsh
 
 # shellcheck source=./sysmaint-session-shared
 source /usr/libexec/user-sysmaint-split/sysmaint-session-shared
