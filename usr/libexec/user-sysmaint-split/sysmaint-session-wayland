@@ -58,9 +58,6 @@ for old_wl_sock in "/run/user/$(id -u)"/wayland-*; do
   fi
 done
 
-## Set by the profile.d drop-in this package ships. It is absent whenever the
-## profile scripts have NOT run -- which is exactly the case this test exists to
-## detect -- so it must be read nounset-safely rather than aborting.
 if [ "${PROFILE_SCRIPTS_WERE_SOURCED:-}" != 'yes' ]; then
    source /etc/profile ## this pulls in /etc/profile.d as well
 fi
@@ -113,17 +110,8 @@ dbus-update-activation-environment --systemd --all
 write_sysmaint_account_specific_config_once
 
 do_once_dir="${HOME}/.local/share/kicksecure/do_once"
-## '|| do_once_dir=""' because this directory only tracks a COSMETIC one-time
-## speaker-volume tweak. A home that is read-only, full, or wrongly owned would
-## otherwise abort here under errexit -- before the session handoff below, so
-## the user cannot log in at all. Losing the marker is the right trade; losing
-## the session is not.
-##
-## Emptying the variable disables the block rather than letting it run against a
-## directory that does not exist.
-mkdir --parents -- "${do_once_dir}" || do_once_dir=""
 
-if [ -n "${do_once_dir}" ] && has pactl; then
+if mkdir --parents -- "${do_once_dir}" && has pactl; then
    try_wait_for_audio_ready
 
    ## Audio may start muted by default. Waybar provides no good way to unmute
@@ -138,9 +126,6 @@ if [ -n "${do_once_dir}" ] && has pactl; then
    ## Also in
    ## desktop-config-dist/usr/libexec/desktop-config-dist/start-lxqt-session.
    if ! [ -f "${do_once_dir}/set_safe_speaker_volume" ]; then
-      ## Same reasoning: an unwritable marker must not end the session. Only set
-      ## the volume once the marker is recorded, so a failed touch skips it
-      ## rather than re-running the set every session.
       if touch -- "${do_once_dir}/set_safe_speaker_volume"; then
          if [ "$(systemd-detect-virt 2>/dev/null || true)" = 'none' ]; then
             timeout --kill-after="1" "1" pactl set-sink-volume @DEFAULT_SINK@ 50% || true
@@ -149,9 +134,7 @@ if [ -n "${do_once_dir}" ] && has pactl; then
    fi
 fi
 
-## style-ok: allow-exec -- this is the session handoff: the window manager must
-## BECOME this process so the session ends when it does, rather than leaving a
-## shell waiting behind it.
+## style-ok: allow-exec -- this is the session handoff.
 if [ "${selected_window_manager}" = '/usr/bin/labwc' ]; then
    # shellcheck disable=SC2086
    exec "${selected_window_manager}" ${selected_window_manager_args} \
@@ -193,9 +176,7 @@ while read -r systemd_env_line; do
    check_variable_name "${systemd_env_var_name}" || continue
    if ! [ -v "${systemd_env_var_name}" ]; then
       eval "${systemd_env_line}"
-      ## Exporting BY NAME is the intent: the variable was just created by the
-      ## eval above and its name is held in systemd_env_var_name, which
-      ## check_variable_name has already validated.
+      ## Exporting by name on purpose.
       # shellcheck disable=SC2163
       export "${systemd_env_var_name}"
    fi
