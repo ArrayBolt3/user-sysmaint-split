@@ -12,6 +12,13 @@
 ## - 'start' is always denied.
 ## - "other" actions (if any) are always denied.
 
+set -o errexit
+set -o nounset
+set -o pipefail
+set -o errtrace
+shopt -s inherit_errexit
+shopt -s shift_verbose
+
 kernel_cmdline=''
 if [ -f /proc/cmdline ]; then
   kernel_cmdline="$(cat -- /proc/cmdline)"
