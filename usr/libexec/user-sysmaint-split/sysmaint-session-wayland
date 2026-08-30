@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# shellcheck source-path=SCRIPTDIR
+
 ## Copyright (C) 2024 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
 ## See the file COPYING for copying conditions.
 
@@ -8,19 +10,27 @@
 ## Taken from https://stackoverflow.com/a/54415774/19474638
 ## For debugging, uncomment this line and comment out the next line.
 #exec > >(systemd-cat --identifier=sysmaint-session-wayland) 2>&1
+set -o errexit
+set -o nounset
+set -o pipefail
+set -o errtrace
+shopt -s inherit_errexit
+shopt -s shift_verbose
+export LC_ALL=C
+
 exec >/dev/null 2>&1
 
 # shellcheck source=../../../../helper-scripts/usr/libexec/helper-scripts/light_sleep.bsh
-source /usr/libexec/helper-scripts/light_sleep.bsh
+source "${HELPER_SCRIPTS_PATH:-}"/usr/libexec/helper-scripts/light_sleep.bsh
 
 # shellcheck source=../../../../helper-scripts/usr/libexec/helper-scripts/has.sh
-source /usr/libexec/helper-scripts/has.sh
+source "${HELPER_SCRIPTS_PATH:-}"/usr/libexec/helper-scripts/has.sh
 
 # shellcheck source=../../../../helper-scripts/usr/libexec/helper-scripts/try_wait_for_audio_ready.bsh
-source /usr/libexec/helper-scripts/try_wait_for_audio_ready.bsh
+source "${HELPER_SCRIPTS_PATH:-}"/usr/libexec/helper-scripts/try_wait_for_audio_ready.bsh
 
 # shellcheck source=../../../../helper-scripts/usr/libexec/helper-scripts/strings.bsh
-source /usr/libexec/helper-scripts/strings.bsh
+source "${HELPER_SCRIPTS_PATH:-}"/usr/libexec/helper-scripts/strings.bsh
 
 # shellcheck source=./sysmaint-session-shared
 source /usr/libexec/user-sysmaint-split/sysmaint-session-shared
@@ -48,7 +58,7 @@ for old_wl_sock in "/run/user/$(id -u)"/wayland-*; do
   fi
 done
 
-if [ "$PROFILE_SCRIPTS_WERE_SOURCED" != 'yes' ]; then
+if [ "${PROFILE_SCRIPTS_WERE_SOURCED:-}" != 'yes' ]; then
    source /etc/profile ## this pulls in /etc/profile.d as well
 fi
 
@@ -99,10 +109,9 @@ dbus-update-activation-environment --systemd --all
 
 write_sysmaint_account_specific_config_once
 
-do_once_dir="$HOME/.local/share/kicksecure/do_once"
-mkdir --parents -- "${do_once_dir}"
+do_once_dir="${HOME}/.local/share/kicksecure/do_once"
 
-if has pactl; then
+if mkdir --parents -- "${do_once_dir}" && has pactl; then
    try_wait_for_audio_ready
 
    ## Audio may start muted by default. Waybar provides no good way to unmute
@@ -117,13 +126,15 @@ if has pactl; then
    ## Also in
    ## desktop-config-dist/usr/libexec/desktop-config-dist/start-lxqt-session.
    if ! [ -f "${do_once_dir}/set_safe_speaker_volume" ]; then
-      touch -- "${do_once_dir}/set_safe_speaker_volume"
-      if [ "$(systemd-detect-virt 2>/dev/null || true)" = 'none' ]; then
-          timeout --kill-after="1" "1" pactl set-sink-volume @DEFAULT_SINK@ 50% || true
+      if touch -- "${do_once_dir}/set_safe_speaker_volume"; then
+         if [ "$(systemd-detect-virt 2>/dev/null || true)" = 'none' ]; then
+            timeout --kill-after="1" "1" pactl set-sink-volume @DEFAULT_SINK@ 50% || true
+         fi
       fi
    fi
 fi
 
+## style-ok: allow-exec -- this is the session handoff.
 if [ "${selected_window_manager}" = '/usr/bin/labwc' ]; then
    # shellcheck disable=SC2086
    exec "${selected_window_manager}" ${selected_window_manager_args} \
@@ -165,6 +176,8 @@ while read -r systemd_env_line; do
    check_variable_name "${systemd_env_var_name}" || continue
    if ! [ -v "${systemd_env_var_name}" ]; then
       eval "${systemd_env_line}"
+      ## Exporting by name on purpose.
+      # shellcheck disable=SC2163
       export "${systemd_env_var_name}"
    fi
 done < <(systemctl --user show-environment)

@@ -1,4 +1,9 @@
-#!/bin/sh
+#!/bin/bash
+
+## Every assignment here is exported by the 'set -o allexport' below and
+## read by grub-mkconfig and by the child /etc/grub.d/10_00_linux_dist,
+## so shellcheck's "appears unused" does not apply.
+# shellcheck disable=SC2034
 
 ## Copyright (C) 2024 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
 ## See the file COPYING for copying conditions.
@@ -7,7 +12,12 @@
 
 true "user-sysmaint-split $0: START"
 
-set -e
+set -o errexit
+set -o nounset
+set -o pipefail
+set -o errtrace
+shopt -s inherit_errexit
+shopt -s shift_verbose
 set -o allexport
 
 make_boot_entry='true'
@@ -15,19 +25,19 @@ make_boot_entry='true'
 : "${persistence_type:="PERSISTENT"}"
 : "${session_detail:="system maintenance"}"
 
-grub_distributor_appendix="$persistence_type Mode | SYSMAINT Session | $session_detail"
+grub_distributor_appendix="${persistence_type} Mode | SYSMAINT Session | ${session_detail}"
 if [ -e '/usr/share/kicksecure/marker' ]; then
-   GRUB_DISTRIBUTOR="$grub_distributor_appendix"
+   GRUB_DISTRIBUTOR="${grub_distributor_appendix}"
 elif [ -e '/usr/share/anon-ws-base-files/workstation' ]; then
-   GRUB_DISTRIBUTOR="$grub_distributor_appendix"
+   GRUB_DISTRIBUTOR="${grub_distributor_appendix}"
 elif [ -e '/usr/share/anon-gw-base-files/gateway' ]; then
-   GRUB_DISTRIBUTOR="$grub_distributor_appendix"
+   GRUB_DISTRIBUTOR="${grub_distributor_appendix}"
 else
-   GRUB_DISTRIBUTOR="$grub_distributor_appendix"
+   GRUB_DISTRIBUTOR="${grub_distributor_appendix}"
 fi
 
 GRUB_DISABLE_RECOVERY="true"
-GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX boot-role=sysmaint systemd.unit=sysmaint-boot.target"
+GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX:-} boot-role=sysmaint systemd.unit=sysmaint-boot.target"
 
 if test -x /etc/grub.d/10_50_linux_dist_advanced ; then
 	/etc/grub.d/10_50_linux_dist_advanced

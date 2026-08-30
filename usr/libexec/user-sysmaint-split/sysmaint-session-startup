@@ -1,15 +1,25 @@
 #!/bin/bash
 
+# shellcheck source-path=SCRIPTDIR
+
 ## Copyright (C) 2024 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
 ## See the file COPYING for copying conditions.
 
 ## This is separate from sysmaint-session and sysmaint-session-wayland so that
 ## labwc can start it using the --session option.
 
+set -o errexit
+set -o nounset
+set -o pipefail
+set -o errtrace
+shopt -s inherit_errexit
+shopt -s shift_verbose
+
 # shellcheck source=./sysmaint-session-shared
 source /usr/libexec/user-sysmaint-split/sysmaint-session-shared
 
-if [ "$XDG_SESSION_TYPE" = 'wayland' ]; then
+
+if [ "${XDG_SESSION_TYPE:-}" = 'wayland' ]; then
    system_tray_list=(
       '/usr/bin/waybar'
    )
@@ -41,4 +51,6 @@ if [ -n "${selected_system_tray}" ]; then
    "${selected_system_tray}" ${selected_system_tray_args} &
 fi
 
-start_user_background_services
+## This is labwc's --startup script, so a non-zero exit can take the session
+## down with it.
+start_user_background_services || true
