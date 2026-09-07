@@ -20,7 +20,6 @@ shopt -s inherit_errexit
 shopt -s shift_verbose
 set -o allexport
 
-
 make_boot_entry='true'
 
 : "${persistence_type:="PERSISTENT"}"
@@ -38,9 +37,6 @@ else
 fi
 
 GRUB_DISABLE_RECOVERY="true"
-## grub-mkconfig normally sources /etc/default/grub, which sets this --
-## but it is not guaranteed, and appending to it bare aborts under nounset
-## and takes the whole grub config generation with it.
 GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX:-} boot-role=sysmaint systemd.unit=sysmaint-boot.target"
 
 if test -x /etc/grub.d/10_50_linux_dist_advanced ; then

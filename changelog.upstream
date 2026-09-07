@@ -1,3 +1,184 @@
+commit 73dbe4a8b505d4839f65dfe76524afd757aac266
+Merge: 8fce9d3 3dbddb1
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sun Aug 30 10:27:35 2026 -0400
+
+    Merge remote-tracking branch 'refs/remotes/ArrayBolt3/arraybolt3/trixie'
+
+commit 3dbddb168a221d210b81709f58bb34bc47e58d35
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Wed Aug 26 00:50:05 2026 -0400
+
+    Polish AI-generated changes
+
+commit 51f7771465402141cf23e120a4f60a673e18a78c
+Merge: 8fce9d3 4426ce2
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Wed Aug 26 00:20:44 2026 -0400
+
+    Merge branch 'ai' into arraybolt3/trixie
+
+commit 4426ce27982ed0630de91a3443db1add176d4b8e
+Author: claude (dev272 e8b76afb-795c-4739-8ebd-023de854021e) <noreply@anthropic.com>
+Date:   Fri Aug 21 04:48:54 2026 -0400
+
+    user-sysmaint-split: source helper-scripts via HELPER_SCRIPTS_PATH, drop SC1091 disable
+
+    - sysmaint-session, sysmaint-session-wayland: use
+      source "${HELPER_SCRIPTS_PATH:-}"/usr/libexec/helper-scripts/<f>; drop the dead
+      '# shellcheck disable=SC1091' and stale sibling notes; complete the R-010
+      strict block (export LC_ALL=C).
+    - .github/dm-consumer.yml: dist-ai-tests: helper-scripts: true.
+    - The debian postinst (maintainer script, set -e only) is left as future work.
+
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit ad9c676de9460005381b25c6887c97b623fef50e
+Author: claude (dev182 e09ec5cf-4ebf-4e1b-88e5-55fbac6ef1d3) <noreply@anthropic.com>
+Date:   Mon Aug 10 13:55:56 2026 -0400
+
+    sysmaint-session-wayland: gate volume set on marker write
+
+    - The do-once marker guards a one-time speaker-volume default. With
+      'touch ... || true' a failed marker write still ran the volume set,
+      so it re-ran every session instead of at most once.
+    - Gate the virt-check/pactl block on touch success: a failed touch now
+      skips the volume set entirely, keeping errexit-safe (an unwritable
+      marker never ends the session) while preserving the run-once intent.
+
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit f190d253a4f728e3f843ad5144e7cce3cae90ea8
+Author: claude (dev163 38f9745c-aed1-4fb4-b6ae-9899f20f8de2) <noreply@anthropic.com>
+Date:   Sat Aug 8 04:56:32 2026 -0400
+
+    CI: enrol in the pre-push static gate
+
+    This repo had no GitHub Actions workflow at all, so nothing verified its PRs on
+    the server side -- the only gate was ci-repro run locally.
+
+    The workflow file is the canonical consumer template, copied verbatim from
+    developer-meta-files/consumer-templates/.github/workflows/. It is managed: once
+    present, dm-packaging-helper-script's pkg_update_consumer_workflows keeps it in
+    sync, so it must not be hand-edited here.
+
+    Enrolment is deliberately a SEPARATE act from propagation: that function uses
+    pkg_update_if_exists, which only updates a workflow that already exists, and
+    pkg_install_dependabot_yml skips any repo with no .github/workflows/ directory.
+    Neither creates the first one. Hence this commit.
+
+    Scope: the repos this session actually changed and that ship shell code -- not
+    every repo lacking CI. Enrolling a repo consumes shared org-wide Actions
+    concurrency (20 jobs, the real limit; public repos are not minute-billed), so it
+    is worth spending where there is signal.
+
+    Verified BEFORE enrolling: 'ci-repro.sh --worktree' passes for this repo, so the
+    gate arrives green rather than turning someone's PR red on arrival.
+
+    NOTE, so it is not a surprise: creating .github/workflows/ makes this repo
+    eligible for the canonical .github/dependabot.yml on the next propagation pass,
+    which pkg_install_dependabot_yml installs into any repo that uses Actions.
+
+commit 0a6ce65d1fc086c18baaa85a00f63139eca336ea
+Author: claude (dev163 38f9745c-aed1-4fb4-b6ae-9899f20f8de2) <noreply@anthropic.com>
+Date:   Fri Aug 7 14:44:40 2026 -0400
+
+    do_once: an unwritable home must not stop the session starting
+
+    The do_once directory records that a COSMETIC one-time speaker-volume tweak has
+    been applied. Creating it was unguarded, so under the errexit added by R-010 a
+    home that is read-only, full, or wrongly owned aborted the script BEFORE the
+    session handoff -- the user could not log in at all.
+
+    Losing the marker is the right trade; losing the session is not. The mkdir now
+    empties do_once_dir on failure, which disables the block rather than letting it
+    run against a directory that does not exist, and the marker touch is
+    best-effort for the same reason.
+
+    The two session scripts carry the identical block and already point at each
+    other in comments, so both are fixed together:
+      desktop-config-dist/usr/libexec/desktop-config-dist/start-lxqt-session
+      user-sysmaint-split/usr/libexec/user-sysmaint-split/sysmaint-session-wayland
+
+    The postinst under /var/lib is deliberately NOT changed: that path is
+    root-owned, a failure there is a real packaging error, and no login depends on
+    it.
+
+    Found by codex, on start-lxqt-session only; the sibling was found by grepping
+    for the same pattern.
+
+    Testing
+    -------
+
+    Gate exit 0 in an ISOLATED checkout, both packages.
+
+    The do_once block is driven in isolation against a fixture HOME, with a marker
+    standing in for the session handoff that follows it:
+
+      4 pass, 0 fail
+
+      start-lxqt-session:        writable home            old reaches, new reaches
+      start-lxqt-session:        home NOT writable (0555) old ABORTS,  new reaches
+      sysmaint-session-wayland:  writable home            old reaches, new reaches
+      sysmaint-session-wayland:  home NOT writable (0555) old ABORTS,  new reaches
+
+    Canary: removing the guard from both gives 2 pass / 2 fail, and the two that
+    fail are exactly the unwritable-home rows.
+
+commit 941f8c1379ea4d7094f4e95be18458df6f0379c6
+Author: claude (dev163 38f9745c-aed1-4fb4-b6ae-9899f20f8de2) <noreply@anthropic.com>
+Date:   Fri Aug 7 08:02:54 2026 -0400
+
+    user-sysmaint-split: R-010 strict for the 9 standalone scripts
+
+    TWO files are deliberately excluded, and the reason matters: the
+    'usr/share/user-sysmaint-split/conf/' staging directory encodes each
+    file's install DESTINATION in its filename, and debian/*.links resolves
+    'profile.d_20_sysmaint_warn.sh' to BOTH /etc/profile.d/ and
+    /etc/zprofile.d/, and 'X11_Xsession.d_15_sysmaint_no_desktop' to
+    /etc/X11/Xsession.d/. Those are sourced by the login shell and by
+    Xsession; a strict-mode block in either breaks every bash and zsh login.
+    Classifying by source path alone calls them standalones.
+
+    Real nounset traps fixed, none of which the gate can see:
+    - All four grub.d scripts append to GRUB_CMDLINE_LINUX. grub-mkconfig
+      normally sources /etc/default/grub, which sets it, but that is not
+      guaranteed -- and appending bare aborted the script, taking the whole
+      grub config generation with it.
+    - sysmaint-session-wayland reads PROFILE_SCRIPTS_WERE_SOURCED, which the
+      profile.d drop-in sets. It is absent exactly when the profile scripts
+      have NOT run, which is the case the test exists to detect.
+    - sysmaint-session-startup reads XDG_SESSION_TYPE, exported by whichever
+      session script invoked it, so it is absent on a standalone run.
+
+    Behaviour preserved: start_user_background_services stays best-effort.
+    This is labwc's --startup script, so a non-zero exit can take the session
+    down, and the call already tolerated individual failures -- a notification
+    service already being registered, for instance.
+
+    grub.d and the qubes post-install hook move from '#!/bin/sh' to bash: both
+    directories document that their files are EXECUTED, never sourced.
+
+    Waivers with reasons: SC2034 file-wide on the grub.d scripts (everything
+    there is exported by 'set -o allexport' and read by grub-mkconfig and the
+    child 10_00_linux_dist); SC2163 on the dynamic 'export "${name}"', which
+    exports by name deliberately after check_variable_name has validated it;
+    allow-exec on the window-manager session handoff.
+
+    Verified in an ISOLATED checkout (~/strict-pass-tests/ci-repro.sh), not
+    just the live tree -- gate exit 0. Sandbox differential vs the pre-change
+    scripts: 9 of 10 identical in output and exit code; sysmaint-session-startup
+    matches on exit code with output differing only by background-service
+    startup races in the sandbox.
+
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+
+commit 8fce9d3acfce75fb15adaf6db4635be2a8d5747c
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Tue Jul 21 09:24:58 2026 +0000
+
+    bumped changelog version
+
 commit 49521813a31294b1bf1d7cd38f35ddd5f3c70571
 Merge: 3758bcd 14ee7cb
 Author: Patrick Schleizer <adrelanos@whonix.org>

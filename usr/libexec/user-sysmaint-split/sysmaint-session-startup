@@ -18,9 +18,7 @@ shopt -s shift_verbose
 # shellcheck source=./sysmaint-session-shared
 source /usr/libexec/user-sysmaint-split/sysmaint-session-shared
 
-## Exported by the session scripts that invoke this one, so it is absent if
-## this runs on its own. Unset previously took the non-wayland branch, which
-## ':-' reproduces instead of aborting under nounset.
+
 if [ "${XDG_SESSION_TYPE:-}" = 'wayland' ]; then
    system_tray_list=(
       '/usr/bin/waybar'
@@ -53,9 +51,6 @@ if [ -n "${selected_system_tray}" ]; then
    "${selected_system_tray}" ${selected_system_tray_args} &
 fi
 
-## Best-effort, deliberately: this is labwc's --startup script, so a
-## non-zero exit can take the session down with it. Starting the user
-## background services was already tolerant of individual failures
-## before strict mode -- a notification service already being
-## registered, for instance -- and must stay so.
+## This is labwc's --startup script, so a non-zero exit can take the session
+## down with it.
 start_user_background_services || true
